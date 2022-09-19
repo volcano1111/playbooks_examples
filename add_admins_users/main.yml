@@ -1,0 +1,36 @@
+- hosts: tardis
+  gather_facts: no
+  vars:
+    users:
+    - pavlunin.aleksey
+
+  tasks:
+  - name: update repositories cache and install 'sudo' package
+    ansible.builtin.apt:
+      name: sudo
+      update_cache: yes
+
+  - name: create group 'vsipadmins'
+    ansible.builtin.group:
+      name: vsipadmins
+
+  - name: add group 'vsipadmins' to sudoers
+    community.general.sudoers:
+      commands: ["ALL", "!/bin/su"]
+      group: vsipadmins
+      name: vsipadmins-group
+
+  - name: create user accounts and add users to groups
+    ansible.builtin.user:
+      append: yes
+      groups: vsipadmins
+      name: "{{ item }}"
+      shell: /bin/bash
+    with_items: "{{ users }}"
+
+  - name: add key to authorized_keys
+    when: not ansible_check_mode
+    ansible.builtin.authorized_key:
+      user: "{{ item }}"
+      key: "{{ lookup('file', 'files/'+ item + '.pub') }}"
+    loop: "{{ users }}"
